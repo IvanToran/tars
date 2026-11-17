@@ -185,16 +185,30 @@ function beep(freq = 880, dur = 0.07) {
   } catch {}
 }
 
-let pendingUtterances = 0, streamDone = true;
+let pendingUtterances = 0, streamDone = true, speechUnlocked = false, spokeOnce = false;
+const liveUtterances = [];
+function unlockSpeech() {
+  if (speechUnlocked || !("speechSynthesis" in window)) return;
+  try {
+    const u = new SpeechSynthesisUtterance(" ");
+    u.volume = 0; u.lang = "es-ES";
+    speechSynthesis.speak(u);
+    speechUnlocked = true;
+  } catch {}
+}
+["touchend", "click"].forEach(ev => document.addEventListener(ev, unlockSpeech, { capture: true }));
 function speak(text) {
   if (!("speechSynthesis" in window) || !text.trim()) return;
   const u = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, ""));
   const v = voices.find(v => v.name === cfg.voice); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "es-ES";
   u.pitch = cfg.pitch; u.rate = cfg.rate;
   pendingUtterances++;
-  u.onstart = () => setState("talking");
-  u.onend = u.onerror = () => { pendingUtterances--; if (pendingUtterances <= 0 && streamDone) finishedSpeaking(); };
+  liveUtterances.push(u);
+  u.onstart = () => { spokeOnce = true; setState("talking"); };
+  u.onend = u.onerror = () => { liveUtterances.splice(liveUtterances.indexOf(u), 1); pendingUtterances--; if (pendingUtterances <= 0 && streamDone) finishedSpeaking(); };
+  try { speechSynthesis.resume(); } catch {}
   speechSynthesis.speak(u);
+  setTimeout(() => { if (!spokeOnce && pendingUtterances > 0) statusEl.textContent = "No suena la voz: quita el modo silencio del iPhone y sube el volumen."; }, 4000);
 }
 function finishedSpeaking() {
   beep(660, 0.05);
@@ -297,13 +311,14 @@ function startListening() {
   };
   rec.onend = () => {
     listening = false; $("mic").classList.remove("on");
-    if (finalText.trim()) ask(finalText);
+    if (finalText.trim()) setTimeout(() => ask(finalText), 250);
     else { setState(""); if (handsFree && !busy) setTimeout(startListening, 300); }
   };
   rec.onerror = e => { if (e.error === "not-allowed") { statusEl.textContent = "Necesito permiso para el micrófono."; handsFree = false; $("handsfree").classList.remove("on"); } };
   try { rec.start(); listening = true; $("mic").classList.add("on"); setState("listening"); } catch {}
 }
 function stopListening() { if (rec && listening) { try { rec.stop(); } catch {} } }
+function killListening() { if (rec) { try { rec.abort(); } catch {} listening = false; } }
 
 // ---------- Controles ----------
 $("start").onclick = () => { beep(440); boot(); };
