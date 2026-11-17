@@ -118,9 +118,9 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem("tars_" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("tars_" + k, JSON.stringify(v)); } catch {} }
 };
-const cfg = store.get("cfg", { honesty: 90, humor: 75, discretion: 80, model: (/iPhone|iPad|Android/i.test(navigator.userAgent) ? "Qwen2.5-0.5B-Instruct-q4f16_1-MLC" : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"), voice: "piper:es_ES-davefx-medium", pitch: 0.95, rate: 0.95, v: 3, name: "", about: "" });
+const cfg = store.get("cfg", { honesty: 90, humor: 75, discretion: 80, model: (/iPhone|iPad|Android/i.test(navigator.userAgent) ? "Qwen2.5-0.5B-Instruct-q4f16_1-MLC" : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"), voice: "", pitch: 0.9, rate: 0.95, v: 4, name: "", about: "" });
 let history = store.get("history", []);
-if (cfg.v !== 3) { cfg.v = 3; cfg.pitch = 0.95; cfg.rate = 0.95; cfg.voice = "piper:es_ES-davefx-medium"; }
+if (cfg.v !== 4) { cfg.v = 4; cfg.pitch = 0.9; cfg.rate = 0.95; cfg.voice = ""; }
 const saveCfg = () => store.set("cfg", cfg);
 const saveHistory = () => store.set("history", history.slice(-30));
 
@@ -161,7 +161,7 @@ function applyParamCommand(text) {
 
 // ---------- Voz (salida) ----------
 const NEURAL = [
-  ["piper:es_ES-davefx-medium", "Neuronal · Dave (hombre, España) — recomendada"],
+  ["piper:es_ES-davefx-medium", "Neuronal · Dave (hombre, España)"],
   ["piper:es_MX-ald-medium", "Neuronal · Ald (hombre, México)"],
   ["piper:es_ES-carlfm-x_low", "Neuronal · Carl (hombre, España, ligera)"]
 ];
@@ -171,16 +171,21 @@ function loadVoices() {
   voices = "speechSynthesis" in window ? speechSynthesis.getVoices() : [];
   const sel = $("voice");
   const es = voices.filter(v => v.lang.toLowerCase().startsWith("es"));
-  sel.innerHTML = NEURAL.map(([v, l]) => `<option value="${v}">${l}</option>`).join("") +
-    es.map(v => `<option value="${v.name}">Sistema · ${v.name} (${v.lang})</option>`).join("");
-  if (!cfg.voice || (!isNeural() && !es.find(v => v.name === cfg.voice))) { cfg.voice = NEURAL[0][0]; saveCfg(); }
+  sel.innerHTML = es.map(v => `<option value="${v.name}">${v.name} (${v.lang})</option>`).join("") +
+    NEURAL.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+  if (!cfg.voice || (!isNeural() && !es.find(v => v.name === cfg.voice))) {
+    const jorge = es.find(v => /jorge/i.test(v.name) && /(mejorada|enhanced|premium)/i.test(v.name)) || es.find(v => /jorge/i.test(v.name));
+    if (jorge) { cfg.voice = jorge.name; saveCfg(); }
+    else if (!es.length) { sel.value = ""; return; }
+  }
   sel.value = cfg.voice;
 }
 loadVoices();
 if ("speechSynthesis" in window) speechSynthesis.onvoiceschanged = loadVoices;
 
 let audioCtx;
-function beep(freq = 880, dur = 0.07) {
+function beep() { return; }
+function _beepOld(freq = 880, dur = 0.07) {
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
