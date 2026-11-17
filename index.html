@@ -118,9 +118,9 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem("tars_" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("tars_" + k, JSON.stringify(v)); } catch {} }
 };
-const cfg = store.get("cfg", { honesty: 90, humor: 75, discretion: 80, model: (/iPhone|iPad|Android/i.test(navigator.userAgent) ? "Qwen2.5-0.5B-Instruct-q4f16_1-MLC" : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"), voice: "", pitch: 0.9, rate: 0.95, v: 4, name: "", about: "" });
+const cfg = store.get("cfg", { honesty: 90, humor: 75, discretion: 80, model: (/iPhone|iPad|Android/i.test(navigator.userAgent) ? "Qwen2.5-0.5B-Instruct-q4f16_1-MLC" : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"), voice: "", pitch: 0.9, rate: 0.95, v: 5, name: "", about: "" });
 let history = store.get("history", []);
-if (cfg.v !== 4) { cfg.v = 4; cfg.pitch = 0.9; cfg.rate = 0.95; cfg.voice = ""; }
+if (cfg.v !== 5) { cfg.v = 5; cfg.pitch = 0.9; cfg.rate = 0.95; cfg.voice = ""; }
 const saveCfg = () => store.set("cfg", cfg);
 const saveHistory = () => store.set("history", history.slice(-30));
 
@@ -171,12 +171,11 @@ function loadVoices() {
   voices = "speechSynthesis" in window ? speechSynthesis.getVoices() : [];
   const sel = $("voice");
   const es = voices.filter(v => v.lang.toLowerCase().startsWith("es"));
-  sel.innerHTML = es.map(v => `<option value="${v.name}">${v.name} (${v.lang})</option>`).join("") +
+  sel.innerHTML = `<option value="system-default">Voz del iPhone (la que marques en Ajustes)</option>` + es.map(v => `<option value="${v.name}">${v.name} (${v.lang})</option>`).join("") +
     NEURAL.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
   if (!cfg.voice || (!isNeural() && !es.find(v => v.name === cfg.voice))) {
     const jorge = es.find(v => /jorge/i.test(v.name) && /(mejorada|enhanced|premium)/i.test(v.name)) || es.find(v => /jorge/i.test(v.name));
-    if (jorge) { cfg.voice = jorge.name; saveCfg(); }
-    else if (!es.length) { sel.value = ""; return; }
+    cfg.voice = jorge ? jorge.name : "system-default"; saveCfg();
   }
   sel.value = cfg.voice;
 }
@@ -276,7 +275,7 @@ function speakSystem(text) {
     if (!("speechSynthesis" in window)) return res();
     const u = new SpeechSynthesisUtterance(text);
     const name = isNeural() ? "" : cfg.voice;
-    const v = voices.find(v => v.name === name) || voices.find(v => /jorge/i.test(v.name));
+    const v = name === "system-default" ? null : (voices.find(v => v.name === name) || voices.find(v => /jorge/i.test(v.name)));
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "es-ES";
     u.pitch = cfg.pitch; u.rate = cfg.rate;
     u.onstart = () => { spokeOnce = true; setState("talking"); };
