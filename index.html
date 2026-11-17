@@ -172,11 +172,11 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem("tars_" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("tars_" + k, JSON.stringify(v)); } catch {} }
 };
-const DEFAULT_VOICE = "piper:es_MX-claude-high";
+const DEFAULT_VOICE = "system-default";
 const cfg = store.get("cfg", {});
 const defaults = { honesty: 90, humor: 75, discretion: 80, model: "Qwen2.5-0.5B-Instruct-q4f16_1-MLC", voice: DEFAULT_VOICE, pitch: 0.92, rate: 0.95, name: "", about: "" };
 for (const k in defaults) if (cfg[k] === undefined) cfg[k] = defaults[k];
-if (cfg.v !== 6) { cfg.v = 6; cfg.voice = DEFAULT_VOICE; cfg.pitch = 0.92; }
+if (cfg.v !== 7) { cfg.v = 7; cfg.voice = DEFAULT_VOICE; cfg.pitch = 0.92; }
 let history = store.get("history", []);
 const saveCfg = () => store.set("cfg", cfg);
 const saveHistory = () => store.set("history", history.slice(-30));
@@ -252,8 +252,7 @@ function applyParamCommand(text) {
 
 // ---------- Voz (salida) ----------
 const NEURAL = [
-  ["piper:es_MX-claude-high", "Neuronal · Claude (hombre, alta calidad)"],
-  ["piper:es_MX-ald-medium", "Neuronal · Ald (hombre)"],
+  ["piper:es_MX-ald-medium", "Neuronal · Ald (hombre, México)"],
   ["piper:es_ES-davefx-medium", "Neuronal · Dave (hombre, España)"],
   ["piper:es_ES-carlfm-x_low", "Neuronal · Carl (hombre, España, ligera)"]
 ];
@@ -262,9 +261,9 @@ const isNeural = () => (cfg.voice || "").startsWith("piper:");
 function loadVoices() {
   voices = "speechSynthesis" in window ? speechSynthesis.getVoices() : [];
   const es = voices.filter(v => v.lang.toLowerCase().startsWith("es"));
-  $("voice").innerHTML = NEURAL.map(([v, l]) => `<option value="${v}">${l}</option>`).join("") +
-    `<option value="system-default">Sistema · voz marcada en Ajustes del iPhone</option>` +
-    es.map(v => `<option value="${v.name}">Sistema · ${v.name} (${v.lang})</option>`).join("");
+  $("voice").innerHTML = `<option value="system-default">Voz marcada en Ajustes del iPhone (Jorge)</option>` +
+    es.map(v => `<option value="${v.name}">Sistema · ${v.name} (${v.lang})</option>`).join("") +
+    NEURAL.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
   $("voice").value = cfg.voice;
 }
 loadVoices();
