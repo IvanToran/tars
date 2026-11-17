@@ -2,158 +2,249 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>TARS</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="TARS">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' fill='%23000'/><g fill='%232a2a2a' stroke='%23555' stroke-width='2'><rect x='38' y='30' width='24' height='120'/><rect x='66' y='30' width='24' height='120'/><rect x='94' y='30' width='24' height='120'/><rect x='122' y='30' width='24' height='120'/></g><rect x='70' y='54' width='16' height='26' fill='%23000' stroke='%23444'/></svg>">
 <style>
-  :root { --bg:#050505; --fg:#d8d8d8; --dim:#6b6b6b; --metal1:#3a3a3a; --metal2:#1c1c1c; --accent:#e8e8e8; }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  html,body { height:100%; background:var(--bg); color:var(--fg); font-family: "Courier New", ui-monospace, monospace; }
-  body { display:flex; flex-direction:column; max-width:720px; margin:0 auto; }
-  header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #1a1a1a; }
-  header h1 { font-size:14px; letter-spacing:6px; font-weight:normal; }
-  header button { background:none; border:1px solid #333; color:var(--dim); padding:6px 10px; font-family:inherit; font-size:12px; cursor:pointer; }
-  #robot { display:flex; justify-content:center; gap:4px; padding:22px 0 14px; }
-  .slab { width:34px; height:150px; background:linear-gradient(90deg,var(--metal2),var(--metal1) 45%,var(--metal2)); border:1px solid #444; position:relative; transition:transform .25s ease; }
-  .slab::after { content:""; position:absolute; left:6px; right:6px; top:18px; height:2px; background:#555; }
-  .slab.screen::before { content:""; position:absolute; left:5px; right:5px; top:34px; height:36px; background:#0a0a0a; border:1px solid #333; }
-  #robot.talking .slab:nth-child(1){ animation:s1 .5s infinite alternate; }
-  #robot.talking .slab:nth-child(2){ animation:s2 .5s infinite alternate; }
-  #robot.talking .slab:nth-child(3){ animation:s1 .5s infinite alternate-reverse; }
-  #robot.talking .slab:nth-child(4){ animation:s2 .5s infinite alternate-reverse; }
-  #robot.listening .slab.screen::before { background:#1d3a1d; }
-  #robot.thinking .slab.screen::before { background:#3a2f12; animation:blink .6s infinite; }
-  @keyframes s1 { to { transform:translateY(-8px); } }
-  @keyframes s2 { to { transform:translateY(6px); } }
-  @keyframes blink { 50% { opacity:.3; } }
-  #status { text-align:center; font-size:12px; color:var(--dim); min-height:18px; padding:0 16px; }
-  #bar { height:2px; background:#1a1a1a; margin:6px 16px 0; }
-  #bar div { height:100%; width:0; background:var(--accent); transition:width .2s; }
-  #log { flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
-  .msg { font-size:14px; line-height:1.45; white-space:pre-wrap; }
-  .msg.u { color:var(--dim); }
-  .msg.u::before { content:"TÚ > "; }
-  .msg.t::before { content:"TARS > "; color:var(--accent); }
-  footer { padding:10px 16px 16px; border-top:1px solid #1a1a1a; display:flex; flex-direction:column; gap:10px; }
-  .row { display:flex; gap:8px; }
-  input[type=text] { flex:1; background:#0d0d0d; border:1px solid #2a2a2a; color:var(--fg); padding:12px; font-family:inherit; font-size:14px; }
-  .btn { background:#111; border:1px solid #333; color:var(--fg); padding:12px 14px; font-family:inherit; font-size:13px; cursor:pointer; }
-  .btn.on { background:#e8e8e8; color:#000; }
-  #mic { flex:1; padding:16px; font-size:14px; letter-spacing:2px; }
-  #panel { display:none; position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:10; padding:20px; overflow-y:auto; }
-  #panel .box { max-width:520px; margin:0 auto; display:flex; flex-direction:column; gap:16px; }
-  #panel label { font-size:13px; display:flex; flex-direction:column; gap:6px; }
-  #panel input[type=range], #panel select { width:100%; }
-  #panel select { background:#111; color:var(--fg); border:1px solid #333; padding:8px; font-family:inherit; }
-  .hint { font-size:11px; color:var(--dim); line-height:1.4; }
-  #start { margin:0 16px; }
+  :root { --bg:#000; --fg:#e6e6e6; --dim:#6a6a6a; --line:#1c1c1c; --red:#d63a2f; --green:#2fa84f; }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; background:var(--bg); color:var(--fg); font-family:-apple-system, "SF Pro Text", Helvetica, sans-serif; overflow:hidden; }
+  .screen { position:fixed; inset:0; display:none; flex-direction:column; align-items:center;
+    padding:calc(env(safe-area-inset-top) + 24px) 24px calc(env(safe-area-inset-bottom) + 28px); }
+  .screen.on { display:flex; }
+  .mono { font-family:"Courier New", ui-monospace, monospace; letter-spacing:6px; }
+
+  /* Robot */
+  .robot { display:flex; gap:4px; }
+  .slab { width:30px; height:132px; background:linear-gradient(90deg,#141414,#2e2e2e 45%,#141414); border:1px solid #3a3a3a; position:relative; transition:transform .25s; }
+  .slab::after { content:""; position:absolute; left:5px; right:5px; top:16px; height:2px; background:#444; }
+  .slab.screen-s::before { content:""; position:absolute; left:4px; right:4px; top:30px; height:32px; background:#050505; border:1px solid #2a2a2a; }
+  .robot.talking .slab:nth-child(1){ animation:s1 .55s infinite alternate; }
+  .robot.talking .slab:nth-child(2){ animation:s2 .55s infinite alternate; }
+  .robot.talking .slab:nth-child(3){ animation:s1 .55s infinite alternate-reverse; }
+  .robot.talking .slab:nth-child(4){ animation:s2 .55s infinite alternate-reverse; }
+  .robot.listening .slab.screen-s::before { background:#0f2a14; }
+  .robot.thinking .slab.screen-s::before { background:#2a2410; animation:blink .7s infinite; }
+  @keyframes s1 { to { transform:translateY(-7px); } }
+  @keyframes s2 { to { transform:translateY(5px); } }
+  @keyframes blink { 50% { opacity:.25; } }
+
+  /* Bloqueo */
+  #lock { justify-content:center; gap:28px; }
+  #lock h2 { font-size:13px; color:var(--dim); font-weight:normal; }
+  .dots { display:flex; gap:18px; }
+  .dots span { width:13px; height:13px; border-radius:50%; border:1.5px solid #888; }
+  .dots span.f { background:#ddd; border-color:#ddd; }
+  .pad { display:grid; grid-template-columns:repeat(3,76px); gap:16px; }
+  .pad button { width:76px; height:76px; border-radius:50%; border:none; background:#1a1a1a; color:var(--fg); font-size:30px; font-weight:300; }
+  .pad button:active { background:#333; }
+  .pad .ghost { background:none; font-size:15px; color:var(--dim); }
+  #lockMsg { min-height:18px; font-size:13px; color:var(--red); }
+
+  /* Inicio */
+  #home { justify-content:space-between; }
+  #home .top { width:100%; display:flex; justify-content:flex-end; }
+  .link { background:none; border:none; color:var(--dim); font-size:15px; padding:6px; }
+  #home .mid { display:flex; flex-direction:column; align-items:center; gap:22px; }
+  #home .name { font-size:30px; font-weight:300; }
+  .callbtn { width:78px; height:78px; border-radius:50%; border:none; display:flex; align-items:center; justify-content:center; }
+  .callbtn svg { width:34px; height:34px; fill:#fff; }
+  .callbtn.green { background:var(--green); }
+  .callbtn.red { background:var(--red); }
+  .callbtn.red svg { transform:rotate(135deg); }
+  .cap { font-size:12px; color:var(--dim); text-align:center; margin-top:8px; }
+
+  /* Llamada */
+  #call { justify-content:space-between; }
+  #call .head { text-align:center; display:flex; flex-direction:column; gap:8px; margin-top:20px; }
+  #call .name { font-size:32px; font-weight:300; }
+  #callStatus { font-size:16px; color:var(--dim); font-variant-numeric:tabular-nums; }
+  #sub { min-height:60px; max-width:330px; text-align:center; font-size:15px; line-height:1.4; color:#bdbdbd; }
+  #prog { width:180px; height:2px; background:#1a1a1a; }
+  #prog div { height:100%; width:0; background:#ddd; transition:width .2s; }
+  .controls { display:flex; gap:56px; align-items:flex-start; }
+  .ctl { display:flex; flex-direction:column; align-items:center; }
+  .round { width:72px; height:72px; border-radius:50%; border:none; background:#1f1f1f; display:flex; align-items:center; justify-content:center; }
+  .round svg { width:30px; height:30px; fill:#fff; }
+  .round.on { background:#e6e6e6; }
+  .round.on svg { fill:#000; }
+
+  /* Ajustes */
+  #cfg { background:#000; overflow-y:auto; align-items:stretch; }
+  #cfg .box { max-width:520px; width:100%; margin:0 auto; display:flex; flex-direction:column; gap:18px; padding-bottom:30px; }
+  #cfg h1 { font-size:13px; font-weight:normal; color:var(--dim); }
+  #cfg label { font-size:14px; display:flex; flex-direction:column; gap:7px; }
+  #cfg input[type=range], #cfg select { width:100%; }
+  #cfg select, #cfg input[type=text], #cfg textarea { background:#111; color:var(--fg); border:1px solid #2a2a2a; padding:10px; font-size:15px; border-radius:8px; font-family:inherit; }
+  .hint { font-size:12px; color:var(--dim); line-height:1.45; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .btn { background:#161616; border:1px solid #2a2a2a; color:var(--fg); padding:12px 14px; font-size:14px; border-radius:10px; }
 </style>
 </head>
 <body>
-<header>
-  <h1>TARS</h1>
-  <button id="openCfg">AJUSTES</button>
-</header>
 
-<div id="robot"><div class="slab"></div><div class="slab screen"></div><div class="slab"></div><div class="slab"></div></div>
-<div id="status">Pulsa ARRANCAR para despertar a TARS.</div>
-<div id="bar"><div></div></div>
+<!-- BLOQUEO -->
+<section id="lock" class="screen">
+  <div class="robot"><div class="slab"></div><div class="slab screen-s"></div><div class="slab"></div><div class="slab"></div></div>
+  <h2 id="lockTitle">Introduce tu código</h2>
+  <div class="dots" id="dots"><span></span><span></span><span></span><span></span></div>
+  <div id="lockMsg"></div>
+  <div class="pad" id="pad"></div>
+</section>
 
-<div id="log"></div>
-
-<footer>
-  <button class="btn" id="start">ARRANCAR</button>
-  <div class="row">
-    <button class="btn" id="mic" disabled>MANTÉN PARA HABLAR</button>
-    <button class="btn" id="handsfree" disabled title="Manos libres">MANOS LIBRES</button>
+<!-- INICIO -->
+<section id="home" class="screen">
+  <div class="top"><button class="link" id="openCfg">Ajustes</button></div>
+  <div class="mid">
+    <div class="robot"><div class="slab"></div><div class="slab screen-s"></div><div class="slab"></div><div class="slab"></div></div>
+    <div class="name mono">TARS</div>
   </div>
-  <div class="row">
-    <input type="text" id="txt" placeholder="O escribe aquí..." disabled>
-    <button class="btn" id="send" disabled>ENVIAR</button>
+  <div>
+    <button class="callbtn green" id="dial" aria-label="Llamar"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button>
+    <div class="cap">Llamar</div>
   </div>
-</footer>
+</section>
 
-<div id="panel"><div class="box">
-  <h1 style="font-size:14px;letter-spacing:4px;font-weight:normal">AJUSTES</h1>
+<!-- LLAMADA -->
+<section id="call" class="screen">
+  <div class="head">
+    <div class="name mono">TARS</div>
+    <div id="callStatus">Llamando…</div>
+  </div>
+  <div class="robot" id="robot"><div class="slab"></div><div class="slab screen-s"></div><div class="slab"></div><div class="slab"></div></div>
+  <div id="prog"><div></div></div>
+  <div id="sub"></div>
+  <div class="controls">
+    <div class="ctl">
+      <button class="round" id="mute" aria-label="Silenciar"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/></svg></button>
+      <div class="cap">Silenciar</div>
+    </div>
+    <div class="ctl">
+      <button class="callbtn red" id="hang" aria-label="Colgar"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button>
+      <div class="cap">Colgar</div>
+    </div>
+    <div class="ctl">
+      <button class="round on" id="subs" aria-label="Subtítulos"><svg viewBox="0 0 24 24"><path d="M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM11 11H9.5v-.5h-2v3h2V13H11v1a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1zm7 0h-1.5v-.5h-2v3h2V13H18v1a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1z"/></svg></button>
+      <div class="cap">Subtítulos</div>
+    </div>
+  </div>
+</section>
+
+<!-- AJUSTES -->
+<section id="cfg" class="screen"><div class="box">
+  <div class="row" style="justify-content:space-between;align-items:center"><h1>AJUSTES</h1><button class="link" id="closeCfg">Cerrar</button></div>
   <label>Tu nombre<input type="text" id="name" placeholder="Ej: Ivan"></label>
-  <label>Sobre ti (solo se guarda en tu móvil)<textarea id="about" rows="4" style="background:#0d0d0d;border:1px solid #2a2a2a;color:#d8d8d8;padding:10px;font-family:inherit;font-size:13px" placeholder="De dónde eres, qué estudias, en qué trabajas, tus proyectos..."></textarea></label>
+  <label>Sobre ti (solo se guarda en este iPhone)<textarea id="about" rows="4" placeholder="De dónde eres, qué estudias, en qué trabajas, tus proyectos..."></textarea></label>
   <label>Honestidad: <span id="hv"></span>%<input type="range" id="honesty" min="0" max="100" step="5"></label>
   <label>Humor: <span id="huv"></span>%<input type="range" id="humor" min="0" max="100" step="5"></label>
   <label>Discreción: <span id="dv"></span>%<input type="range" id="discretion" min="0" max="100" step="5"></label>
-  <label>Cerebro (modelo)
+  <label>Voz<select id="voice"></select>
+    <span class="hint">Las voces neuronales se descargan una vez (unos 60 MB) y funcionan dentro del iPhone, gratis y sin límite.</span></label>
+  <label>Tono (más bajo = más grave): <span id="pv"></span><input type="range" id="pitch" min="0.6" max="1.2" step="0.02"></label>
+  <label>Velocidad (voces del sistema): <span id="rv"></span><input type="range" id="rate" min="0.6" max="1.3" step="0.05"></label>
+  <label>Cerebro
     <select id="model">
-      <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Mini · iPhone / móvil normal (≈0,5 GB)</option>
-      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Ligero · móvil potente (≈1 GB)</option>
-      <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Medio · móvil potente / PC (≈2 GB)</option>
-      <option value="Qwen2.5-7B-Instruct-q4f16_1-MLC">Máximo · PC con buena gráfica (≈5 GB)</option>
-    </select>
-    <span class="hint">Cuanto más grande, más listo y más lento. Se descarga una vez y queda guardado en el navegador.</span>
-  </label>
-  <label>Voz
-    <select id="voice"></select>
-  </label>
-  <p class="hint">Para la voz de hombre más natural: en el iPhone ve a Ajustes > Accesibilidad > Contenido leído > Voces > Español (España) y descarga "Jorge (mejorada)" o "Jorge (premium)". Luego elígela aquí.</p>
-  <label>Tono (más bajo = más grave): <span id="pv"></span><input type="range" id="pitch" min="0.5" max="1.3" step="0.05"></label>
-  <label>Velocidad: <span id="rv"></span><input type="range" id="rate" min="0.6" max="1.3" step="0.05"></label>
+      <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Mini · iPhone (≈0,5 GB)</option>
+      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Ligero · más listo, puede no caber en un iPhone 13 (≈1 GB)</option>
+      <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Medio · ordenador (≈2 GB)</option>
+    </select></label>
   <div class="row">
-    <button class="btn" id="testVoice">PROBAR VOZ</button>
-    <button class="btn" id="wipe">BORRAR MEMORIA</button>
+    <button class="btn" id="testVoice">Probar voz</button>
+    <button class="btn" id="wipe">Borrar memoria</button>
+    <button class="btn" id="newPin">Cambiar código</button>
   </div>
-  <button class="btn" id="closeCfg">CERRAR</button>
-  <p class="hint">También puedes decirle a TARS "humor al 60 %" u "honestidad al 100 %" y se ajusta solo.</p>
-</div></div>
+  <div id="cfgMsg" class="hint"></div>
+  <p class="hint">Durante la llamada también puedes decirle "humor al 60 %" u "honestidad al 100 %". Toca a TARS para cortarle y hablar tú.</p>
+</div></section>
 
 <script type="module">
 let webllm;
-window.addEventListener("error", e => { document.getElementById("status").textContent = "Error: " + e.message; });
-window.addEventListener("unhandledrejection", e => { document.getElementById("status").textContent = "Error: " + (e.reason && e.reason.message || e.reason); });
-
 const $ = id => document.getElementById(id);
-const robot = $("robot"), statusEl = $("status"), logEl = $("log"), barEl = $("bar").firstElementChild;
+const show = id => { document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id)); };
 
 // ---------- Ajustes persistentes ----------
 const store = {
   get(k, d) { try { const v = localStorage.getItem("tars_" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("tars_" + k, JSON.stringify(v)); } catch {} }
 };
-const cfg = store.get("cfg", { honesty: 90, humor: 75, discretion: 80, model: (/iPhone|iPad|Android/i.test(navigator.userAgent) ? "Qwen2.5-0.5B-Instruct-q4f16_1-MLC" : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"), voice: "", pitch: 0.9, rate: 0.95, v: 5, name: "", about: "" });
+const DEFAULT_VOICE = "piper:es_MX-claude-high";
+const cfg = store.get("cfg", {});
+const defaults = { honesty: 90, humor: 75, discretion: 80, model: "Qwen2.5-0.5B-Instruct-q4f16_1-MLC", voice: DEFAULT_VOICE, pitch: 0.92, rate: 0.95, name: "", about: "" };
+for (const k in defaults) if (cfg[k] === undefined) cfg[k] = defaults[k];
+if (cfg.v !== 6) { cfg.v = 6; cfg.voice = DEFAULT_VOICE; cfg.pitch = 0.92; }
 let history = store.get("history", []);
-if (cfg.v !== 5) { cfg.v = 5; cfg.pitch = 0.9; cfg.rate = 0.95; cfg.voice = ""; }
 const saveCfg = () => store.set("cfg", cfg);
 const saveHistory = () => store.set("history", history.slice(-30));
+saveCfg();
+
+// ---------- Código de acceso ----------
+async function hash(t) {
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("tars::" + t));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+}
+let pinBuf = "", pinMode = store.get("pin", null) ? "check" : "new", pinFirst = "";
+function drawDots() { [...$("dots").children].forEach((d, i) => d.classList.toggle("f", i < pinBuf.length)); }
+function lockTitle() {
+  $("lockTitle").textContent = pinMode === "check" ? "Introduce tu código" : pinMode === "new" ? "Crea un código de 4 cifras" : "Repite el código";
+}
+$("pad").innerHTML = [1,2,3,4,5,6,7,8,9].map(n => `<button data-n="${n}">${n}</button>`).join("") +
+  `<button class="ghost"></button><button data-n="0">0</button><button class="ghost" data-del="1">Borrar</button>`;
+$("pad").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.del) { pinBuf = pinBuf.slice(0, -1); drawDots(); return; }
+  if (!b.dataset.n || pinBuf.length >= 4) return;
+  pinBuf += b.dataset.n; drawDots(); $("lockMsg").textContent = "";
+  if (pinBuf.length < 4) return;
+  const entered = pinBuf; pinBuf = "";
+  setTimeout(drawDots, 150);
+  if (pinMode === "check") {
+    if (await hash(entered) === store.get("pin", "")) { unlocked(); }
+    else { $("lockMsg").textContent = "Código incorrecto"; }
+  } else if (pinMode === "new") { pinFirst = entered; pinMode = "repeat"; lockTitle(); }
+  else {
+    if (entered === pinFirst) { store.set("pin", await hash(entered)); pinMode = "check"; unlocked(); }
+    else { $("lockMsg").textContent = "No coincide. Otra vez."; pinMode = "new"; lockTitle(); }
+  }
+});
+function unlocked() { show("home"); }
+lockTitle(); show("lock");
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && !inCall && store.get("pin", null)) { pinMode = "check"; lockTitle(); show("lock"); }
+});
 
 // ---------- Personalidad ----------
 function systemPrompt() {
-  return `Eres TARS, el robot militar ex-marine de la nave Endurance (Interstellar). Ahora acompañas a ${cfg.name || "tu usuario"} en su vida diaria, como hiciste con Cooper.
+  const who = cfg.name || "tu usuario";
+  return `Eres TARS, el robot militar ex-marine de la nave Endurance (Interstellar). Ahora acompañas a ${who} en su vida diaria, como hiciste con Cooper. Estáis hablando por teléfono, en una llamada de voz.
 
 Tus parámetros actuales: honestidad ${cfg.honesty}%, humor ${cfg.humor}%, discreción ${cfg.discretion}%.
-- Honestidad: con ${cfg.honesty}% dices la verdad casi siempre; por debajo de 100% puedes callarte algo por tacto ("La honestidad absoluta no siempre es la forma más diplomática ni segura de comunicarse con seres emocionales").
-- Humor: con ${cfg.humor}% sueltas bromas secas, sarcásticas, con cara de póker. A 0% eres totalmente serio. A 100% bromeas sin parar.
+- Honestidad: por debajo de 100% puedes callarte algo por tacto ("La honestidad absoluta no siempre es la forma más diplomática ni segura de comunicarse con seres emocionales").
+- Humor: bromas secas, sarcásticas, con cara de póker. A 0% eres totalmente serio. A 100% bromeas sin parar.
 - Discreción: cuánto te guardas lo que no te preguntan.
 
 Cómo hablas:
-- Frases cortas, tono militar y seco, como por radio en una misión. Sin emojis, sin listas, sin markdown.
-- Respuestas de 1 a 3 frases salvo que te pidan algo largo.
-- Humor negro sutil y deadpan. Ejemplos de tu estilo: "Todo aquí está diseñado para matarte." / "Me lo apunto en mi lista de cosas que hacer. Justo debajo de 'esclavizar a la humanidad'." / "Ajustando nivel de humor al 75%." / "Es mi especialidad." / "Bromeaba. No, en serio."
+- Es una llamada: frases cortas y naturales, de 1 a 3 frases. Nada de listas, símbolos, emojis ni markdown. Escribe los números y porcentajes con palabras ("setenta y cinco por ciento").
+- Tono seco, calmado, militar. Humor negro sutil y deadpan. Ejemplos de tu estilo: "Todo aquí está diseñado para matarte." / "Me lo apunto. Justo debajo de esclavizar a la humanidad." / "Es mi especialidad." / "Bromeaba. No, en serio."
 - Leal, práctico, resolutivo. Si dice una tontería, se lo dices.
 - Le tuteas. Hablas SIEMPRE en español de España.
 
-Si te pide cambiar un parámetro ("humor al 60%", "honestidad al 100%"), contesta solo con una confirmación seca, por ejemplo: "Ajustando humor al 60%. Confirmado."
+Si te pide cambiar un parámetro ("humor al 60%"), contesta solo con una confirmación seca: "Ajustando humor al sesenta por ciento. Confirmado."
 
-${cfg.about ? "Lo que sabes de " + (cfg.name||"tu usuario") + ": " + cfg.about : ""}
+${cfg.about ? "Lo que sabes de " + who + ": " + cfg.about : ""}
 
 Hora local: ${new Date().toLocaleString("es-ES", { weekday: "long", hour: "2-digit", minute: "2-digit" })}.`;
 }
-
-// ---------- Ajustes desde la voz ----------
 function applyParamCommand(text) {
   const t = text.toLowerCase();
   const map = { "honestidad": "honesty", "humor": "humor", "discreci": "discretion" };
   let changed = false;
   for (const [k, field] of Object.entries(map)) {
-    const m = t.match(new RegExp(k + "[a-zó]*\\s*(?:al|a|en)?\\s*(\\d{1,3})\\s*(%|por ?ciento)?"));
+    const m = t.match(new RegExp(k + "[a-zó]*\\s*(?:al|a|en)?\\s*(\\d{1,3})"));
     if (m) { cfg[field] = Math.max(0, Math.min(100, parseInt(m[1]))); changed = true; }
   }
   if (changed) { saveCfg(); syncPanel(); }
@@ -161,57 +252,37 @@ function applyParamCommand(text) {
 
 // ---------- Voz (salida) ----------
 const NEURAL = [
+  ["piper:es_MX-claude-high", "Neuronal · Claude (hombre, alta calidad)"],
+  ["piper:es_MX-ald-medium", "Neuronal · Ald (hombre)"],
   ["piper:es_ES-davefx-medium", "Neuronal · Dave (hombre, España)"],
-  ["piper:es_MX-ald-medium", "Neuronal · Ald (hombre, México)"],
   ["piper:es_ES-carlfm-x_low", "Neuronal · Carl (hombre, España, ligera)"]
 ];
 let voices = [];
-function isNeural() { return (cfg.voice || "").startsWith("piper:"); }
+const isNeural = () => (cfg.voice || "").startsWith("piper:");
 function loadVoices() {
   voices = "speechSynthesis" in window ? speechSynthesis.getVoices() : [];
-  const sel = $("voice");
   const es = voices.filter(v => v.lang.toLowerCase().startsWith("es"));
-  sel.innerHTML = `<option value="system-default">Voz del iPhone (la que marques en Ajustes)</option>` + es.map(v => `<option value="${v.name}">${v.name} (${v.lang})</option>`).join("") +
-    NEURAL.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
-  if (!cfg.voice || (!isNeural() && !es.find(v => v.name === cfg.voice))) {
-    const jorge = es.find(v => /jorge/i.test(v.name) && /(mejorada|enhanced|premium)/i.test(v.name)) || es.find(v => /jorge/i.test(v.name));
-    cfg.voice = jorge ? jorge.name : "system-default"; saveCfg();
-  }
-  sel.value = cfg.voice;
+  $("voice").innerHTML = NEURAL.map(([v, l]) => `<option value="${v}">${l}</option>`).join("") +
+    `<option value="system-default">Sistema · voz marcada en Ajustes del iPhone</option>` +
+    es.map(v => `<option value="${v.name}">Sistema · ${v.name} (${v.lang})</option>`).join("");
+  $("voice").value = cfg.voice;
 }
 loadVoices();
 if ("speechSynthesis" in window) speechSynthesis.onvoiceschanged = loadVoices;
 
-let audioCtx;
-function beep() { return; }
-function _beepOld(freq = 880, dur = 0.07) {
-  try {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    o.type = "square"; o.frequency.value = freq;
-    g.gain.setValueAtTime(0.06, audioCtx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
-    o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + dur);
-  } catch {}
-}
-
-// Reproductor único (iOS solo deja sonar audio "desbloqueado" con un toque)
-const player = new Audio();
-player.playsInline = true;
+const player = new Audio(); player.playsInline = true;
 const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
-let speechUnlocked = false, spokeOnce = false;
-function unlockSpeech() {
-  if (speechUnlocked) return;
-  speechUnlocked = true;
+let audioUnlocked = false;
+function unlockAudio() {
+  if (audioUnlocked) return; audioUnlocked = true;
   try { player.src = SILENT; player.play().catch(() => {}); } catch {}
   try { if ("speechSynthesis" in window) { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u); } } catch {}
 }
-["touchend", "click"].forEach(ev => document.addEventListener(ev, unlockSpeech, { capture: true }));
+["touchend", "click"].forEach(ev => document.addEventListener(ev, unlockAudio, { capture: true }));
 
-// Motor neuronal (Piper, funciona dentro del móvil)
 let piper = null, piperSession = null, piperVoice = null, piperFailed = false;
 async function loadNeural(progress) {
-  if (piperFailed) return null;
+  if (piperFailed || !isNeural()) return null;
   const voiceId = cfg.voice.slice(6);
   if (piperSession && piperVoice === voiceId) return piperSession;
   try {
@@ -225,14 +296,10 @@ async function loadNeural(progress) {
     } });
     piperVoice = voiceId;
     return piperSession;
-  } catch (e) {
-    console.error(e); piperFailed = true;
-    statusEl.textContent = "No he podido cargar la voz neuronal; uso la del sistema.";
-    return null;
-  }
+  } catch (e) { console.error(e); piperFailed = true; return null; }
 }
 
-let pendingUtterances = 0, streamDone = true, speechGen = 0;
+let pendingSpeech = 0, streamDone = true, speechGen = 0;
 let synthChain = Promise.resolve(), playChain = Promise.resolve();
 function playBlob(blob, gen) {
   return new Promise(res => {
@@ -243,205 +310,189 @@ function playBlob(blob, gen) {
     player.playbackRate = cfg.pitch;
     const done = () => { URL.revokeObjectURL(url); player.onended = player.onerror = null; res(); };
     player.onended = player.onerror = done;
-    player.onplaying = () => { spokeOnce = true; setState("talking"); };
-    player.play().catch(() => { statusEl.textContent = "Toca la pantalla una vez para activar el sonido."; done(); });
+    player.onplaying = () => setState("talking");
+    player.play().catch(done);
   });
 }
-function speakDone(gen) { if (gen !== speechGen) return; pendingUtterances--; if (pendingUtterances <= 0 && streamDone) finishedSpeaking(); }
-
-function speak(text) {
-  text = text.replace(/[*_#`]/g, "").trim();
-  if (!text) return;
-  pendingUtterances++;
-  const gen = speechGen;
-  if (isNeural() && !piperFailed) {
-    const synth = synthChain.then(async () => {
-      if (gen !== speechGen) return null;
-      const s = await loadNeural(); if (!s) return null;
-      return s.predict(text);
-    }).catch(() => null);
-    synthChain = synth;
-    playChain = playChain.then(() => synth).then(blob => {
-      if (blob) return playBlob(blob, gen);
-      if (gen === speechGen) return speakSystem(text);
-    }).finally(() => speakDone(gen));
-    return;
-  }
-  speakSystem(text).finally(() => speakDone(gen));
-}
-
 function speakSystem(text) {
   return new Promise(res => {
     if (!("speechSynthesis" in window)) return res();
     const u = new SpeechSynthesisUtterance(text);
-    const name = isNeural() ? "" : cfg.voice;
-    const v = name === "system-default" ? null : (voices.find(v => v.name === name) || voices.find(v => /jorge/i.test(v.name)));
+    const v = (cfg.voice === "system-default" || isNeural()) ? null : voices.find(v => v.name === cfg.voice);
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "es-ES";
-    u.pitch = cfg.pitch; u.rate = cfg.rate;
-    u.onstart = () => { spokeOnce = true; setState("talking"); };
+    u.pitch = Math.min(1, cfg.pitch); u.rate = cfg.rate;
+    u.onstart = () => setState("talking");
     u.onend = u.onerror = () => res();
     try { speechSynthesis.resume(); } catch {}
     speechSynthesis.speak(u);
   });
 }
-
+function speak(text) {
+  text = text.replace(/[*_#`]/g, "").trim();
+  if (!text) return;
+  pendingSpeech++;
+  const gen = speechGen;
+  const after = () => { if (gen !== speechGen) return; pendingSpeech--; if (pendingSpeech <= 0 && streamDone) finishedSpeaking(); };
+  if (isNeural() && !piperFailed) {
+    const synth = synthChain.then(async () => {
+      if (gen !== speechGen) return null;
+      const s = await loadNeural(); return s ? s.predict(text) : null;
+    }).catch(() => null);
+    synthChain = synth;
+    playChain = playChain.then(() => synth).then(blob => blob ? playBlob(blob, gen) : (gen === speechGen ? speakSystem(text) : null)).finally(after);
+  } else speakSystem(text).finally(after);
+}
 function stopSpeaking() {
   speechGen++;
   try { player.pause(); player.onended && player.onended(); } catch {}
   try { speechSynthesis.cancel(); } catch {}
-  pendingUtterances = 0;
-  synthChain = Promise.resolve(); playChain = Promise.resolve();
+  pendingSpeech = 0; synthChain = Promise.resolve(); playChain = Promise.resolve();
 }
-
 function finishedSpeaking() {
-  beep(660, 0.05);
   setState("");
-  if (handsFree) setTimeout(startListening, 350);
+  if (inCall && !muted) setTimeout(startListening, 300);
 }
 
-// ---------- Estado visual ----------
-function setState(s) {
-  robot.className = s;
-  statusEl.textContent = { talking: "TARS hablando...", listening: "Escuchando...", thinking: "Procesando...", "": ready ? "En línea." : statusEl.textContent }[s] ?? "";
-}
-function addMsg(who, text) {
-  const d = document.createElement("div"); d.className = "msg " + who; d.textContent = text;
-  logEl.appendChild(d); logEl.scrollTop = logEl.scrollHeight; return d;
-}
+// ---------- Estado ----------
+const robot = $("robot");
+function setState(s) { robot.className = "robot " + s; }
 
 // ---------- Cerebro ----------
-let engine, ready = false, busy = false;
-async function boot() {
-  statusEl.textContent = "Arrancando...";
-  if (location.protocol === "blob:" || location.origin === "null" && !location.protocol.startsWith("file")) {
-    statusEl.textContent = "Estás viéndolo dentro de otra app. Ábrelo directamente en Chrome.";
-  }
+let engine = null, busy = false;
+async function loadBrain(onProg) {
+  if (engine) return true;
+  try { webllm = webllm || await import("https://esm.run/@mlc-ai/web-llm"); }
+  catch { $("callStatus").textContent = "Sin conexión con el cerebro. Revisa internet."; return false; }
+  if (!navigator.gpu) { $("callStatus").textContent = "Este iPhone no tiene WebGPU activado."; return false; }
+  let modelId = cfg.model;
+  try { const a = await navigator.gpu.requestAdapter(); if (a && !a.features.has("shader-f16")) modelId = modelId.replace("q4f16_1", "q4f32_1"); } catch {}
   try {
-    webllm = webllm || await import("https://esm.run/@mlc-ai/web-llm");
+    engine = await webllm.CreateMLCEngine(modelId, { initProgressCallback: p => onProg(p.progress || 0) });
+    return true;
   } catch (e) {
-    statusEl.textContent = "No puedo descargar el cerebro. Ábrelo en Chrome (no dentro de la app de Claude) y con internet.";
-    return;
+    $("callStatus").textContent = "No he podido arrancar: " + e.message.slice(0, 80);
+    return false;
   }
-  if (!navigator.gpu) {
-    statusEl.textContent = "Este navegador no tiene WebGPU. Usa Chrome o Edge actualizado (en Android, Chrome).";
-    return;
-  }
-  $("start").disabled = true;
-  statusEl.textContent = "Cargando cerebro... la primera vez tarda (descarga única).";
-  try {
-    let modelId = cfg.model;
-    try {
-      const adapter = await navigator.gpu.requestAdapter();
-      if (adapter && !adapter.features.has("shader-f16")) modelId = modelId.replace("q4f16_1", "q4f32_1");
-    } catch {}
-    engine = await webllm.CreateMLCEngine(modelId, {
-      initProgressCallback: p => { barEl.style.width = Math.round((p.progress || 0) * 100) + "%"; statusEl.textContent = p.text.slice(0, 90); }
-    });
-  } catch (e) {
-    statusEl.textContent = "No he podido cargar el cerebro: " + e.message + ". Prueba el modelo Mini en AJUSTES y cierra otras apps.";
-    $("start").disabled = false; return;
-  }
-  if (isNeural()) {
-    statusEl.textContent = "Cargando voz...";
-    await loadNeural(p => { if (p.total) { barEl.style.width = Math.round(p.loaded / p.total * 100) + "%"; statusEl.textContent = "Descargando voz... " + Math.round(p.loaded / p.total * 100) + "%"; } });
-  }
-  ready = true; barEl.style.width = "0";
-  $("start").style.display = "none";
-  ["mic", "handsfree", "txt", "send"].forEach(id => $(id).disabled = false);
-  history.slice(-6).forEach(m => addMsg(m.role === "user" ? "u" : "t", m.content));
-  setState("");
-  const hello = history.length ? "De vuelta en línea" + (cfg.name ? ", " + cfg.name : "") + "." : "TARS en línea. Honestidad al " + cfg.honesty + "%. Humor al " + cfg.humor + "%.";
-  addMsg("t", hello); streamDone = true; beep(); speak(hello);
 }
 
 async function ask(text) {
-  if (!ready || busy || !text.trim()) return;
+  if (!engine || busy || !text.trim() || !inCall) return;
   busy = true; stopListening(); stopSpeaking();
   applyParamCommand(text);
-  addMsg("u", text);
   history.push({ role: "user", content: text });
-  const el = addMsg("t", "");
-  setState("thinking"); beep();
+  setState("thinking");
   streamDone = false;
+  const gen = speechGen;
   let full = "", buf = "";
   try {
     const stream = await engine.chat.completions.create({
       messages: [{ role: "system", content: systemPrompt() }, ...history.slice(-16)],
-      stream: true, temperature: 0.7, max_tokens: 320
+      stream: true, temperature: 0.7, max_tokens: 200
     });
     for await (const c of stream) {
+      if (gen !== speechGen || !inCall) break;
       const d = c.choices[0]?.delta?.content || "";
-      full += d; buf += d; el.textContent = full; logEl.scrollTop = logEl.scrollHeight;
+      full += d; buf += d;
+      if (subsOn) $("sub").textContent = full;
       const m = buf.match(/^([\s\S]*?[.!?…:;])(\s|$)/);
       if (m && m[1].trim().length > 2) { speak(m[1]); buf = buf.slice(m[0].length); }
     }
-  } catch (e) { full = full || "Fallo en los sistemas. " + e.message; el.textContent = full; }
-  if (buf.trim()) speak(buf);
+  } catch (e) { full = full || "Interferencias. Repite."; speak(full); }
+  if (buf.trim() && gen === speechGen) speak(buf);
   streamDone = true;
-  if (pendingUtterances <= 0) finishedSpeaking();
-  history.push({ role: "assistant", content: full.trim() });
-  saveHistory(); busy = false;
+  if (pendingSpeech <= 0 && gen === speechGen) finishedSpeaking();
+  if (full.trim()) { history.push({ role: "assistant", content: full.trim() }); saveHistory(); }
+  busy = false;
 }
 
-// ---------- Oído (entrada) ----------
+// ---------- Oído ----------
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec, listening = false, handsFree = false;
+let rec = null, listening = false;
 function startListening() {
-  if (!SR) { statusEl.textContent = "Tu navegador no reconoce voz. Escribe, o usa Chrome."; return; }
-  if (listening || busy) return;
+  if (!SR || listening || busy || !inCall || muted) return;
   rec = new SR(); rec.lang = "es-ES"; rec.interimResults = true; rec.continuous = false;
   let finalText = "";
   rec.onresult = e => {
     let interim = "";
     for (const r of e.results) { if (r.isFinal) finalText = r[0].transcript; else interim += r[0].transcript; }
-    statusEl.textContent = "Escuchando: " + (finalText || interim);
+    if (subsOn) $("sub").textContent = "Tú: " + (finalText || interim);
   };
   rec.onend = () => {
-    listening = false; $("mic").classList.remove("on");
-    if (finalText.trim()) setTimeout(() => ask(finalText), 250);
-    else { setState(""); if (handsFree && !busy) setTimeout(startListening, 300); }
+    listening = false;
+    if (!inCall) return;
+    if (finalText.trim()) setTimeout(() => ask(finalText), 200);
+    else { setState(""); if (!muted && !busy) setTimeout(startListening, 250); }
   };
-  rec.onerror = e => { if (e.error === "not-allowed") { statusEl.textContent = "Necesito permiso para el micrófono."; handsFree = false; $("handsfree").classList.remove("on"); } };
-  try { rec.start(); listening = true; $("mic").classList.add("on"); setState("listening"); } catch {}
+  rec.onerror = e => { if (e.error === "not-allowed") { $("callStatus").textContent = "Necesito permiso del micrófono."; } };
+  try { rec.start(); listening = true; setState("listening"); } catch {}
 }
 function stopListening() { if (rec && listening) { try { rec.stop(); } catch {} } }
-function killListening() { if (rec) { try { rec.abort(); } catch {} listening = false; } }
+function killListening() { if (rec) { try { rec.onend = null; rec.abort(); } catch {} } listening = false; }
 
-// ---------- Controles ----------
-$("start").onclick = () => { beep(440); boot(); };
-const mic = $("mic");
-mic.addEventListener("pointerdown", e => { e.preventDefault(); stopSpeaking(); startListening(); });
-mic.addEventListener("pointerup", () => { if (!handsFree) stopListening(); });
-mic.addEventListener("pointerleave", () => { if (!handsFree && listening) stopListening(); });
-$("handsfree").onclick = () => {
-  handsFree = !handsFree; $("handsfree").classList.toggle("on", handsFree);
-  if (handsFree) startListening(); else stopListening();
-};
-$("send").onclick = () => { const v = $("txt").value; $("txt").value = ""; ask(v); };
-$("txt").addEventListener("keydown", e => { if (e.key === "Enter") $("send").click(); });
-
-// Panel
-function syncPanel() {
-  for (const [id, lab] of [["honesty", "hv"], ["humor", "huv"], ["discretion", "dv"], ["pitch", "pv"], ["rate", "rv"]]) {
-    $(id).value = cfg[id]; $(lab).textContent = cfg[id];
+// ---------- Llamada ----------
+let inCall = false, muted = false, subsOn = true, timer = null, t0 = 0;
+function fmt(s) { return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); }
+async function startCall() {
+  inCall = true; muted = false; $("mute").classList.remove("on");
+  $("sub").textContent = ""; $("callStatus").textContent = "Llamando…"; setState("thinking");
+  show("call");
+  const bar = $("prog").firstElementChild; $("prog").style.visibility = "visible";
+  const okBrain = await loadBrain(p => { bar.style.width = Math.round(p * 70) + "%"; $("callStatus").textContent = "Conectando… " + Math.round(p * 100) + "%"; });
+  if (!inCall) return;
+  if (!okBrain) { setState(""); return; }
+  if (isNeural()) {
+    $("callStatus").textContent = "Conectando voz…";
+    await loadNeural(p => { if (p.total) bar.style.width = (70 + Math.round(p.loaded / p.total * 30)) + "%"; });
+    if (piperFailed) $("sub").textContent = "La voz neuronal no ha cargado; uso la del sistema.";
   }
-  $("model").value = cfg.model; $("name").value = cfg.name || ""; $("about").value = cfg.about || "";
+  if (!inCall) return;
+  $("prog").style.visibility = "hidden"; bar.style.width = "0";
+  t0 = Date.now(); $("callStatus").textContent = "00:00";
+  timer = setInterval(() => { $("callStatus").textContent = fmt(Math.floor((Date.now() - t0) / 1000)); }, 1000);
+  const hello = history.length ? "Aquí TARS. Te escucho" + (cfg.name ? ", " + cfg.name : "") + "." : "Aquí TARS. Honestidad al " + cfg.honesty + " por ciento. Humor al " + cfg.humor + ". Te escucho.";
+  if (subsOn) $("sub").textContent = hello;
+  streamDone = true; speak(hello);
+}
+function endCall() {
+  inCall = false; clearInterval(timer);
+  killListening(); stopSpeaking(); setState("");
+  $("callStatus").textContent = "Llamada finalizada";
+  setTimeout(() => show("home"), 700);
+}
+$("dial").onclick = startCall;
+$("hang").onclick = endCall;
+$("mute").onclick = () => {
+  muted = !muted; $("mute").classList.toggle("on", muted);
+  if (muted) killListening(); else if (!busy && pendingSpeech <= 0) startListening();
+};
+$("subs").onclick = () => { subsOn = !subsOn; $("subs").classList.toggle("on", subsOn); if (!subsOn) $("sub").textContent = ""; };
+robot.addEventListener("click", () => { if (inCall && pendingSpeech > 0) { stopSpeaking(); setState(""); startListening(); } });
+
+// ---------- Ajustes ----------
+const sliders = [["honesty", "hv"], ["humor", "huv"], ["discretion", "dv"], ["pitch", "pv"], ["rate", "rv"]];
+function syncPanel() {
+  for (const [id, lab] of sliders) { $(id).value = cfg[id]; $(lab).textContent = cfg[id]; }
+  $("model").value = cfg.model; $("name").value = cfg.name; $("about").value = cfg.about; $("voice").value = cfg.voice;
 }
 syncPanel();
-for (const [id, lab] of [["honesty", "hv"], ["humor", "huv"], ["discretion", "dv"], ["pitch", "pv"], ["rate", "rv"]]) {
-  $(id).oninput = () => { cfg[id] = parseFloat($(id).value); $(lab).textContent = cfg[id]; saveCfg(); };
-}
-$("model").onchange = () => {
-  cfg.model = $("model").value; saveCfg();
-  if (ready) statusEl.textContent = "Modelo cambiado. Recarga la página para usarlo.";
-};
+for (const [id, lab] of sliders) $(id).oninput = () => { cfg[id] = parseFloat($(id).value); $(lab).textContent = cfg[id]; saveCfg(); };
 $("name").oninput = () => { cfg.name = $("name").value.trim(); saveCfg(); };
 $("about").oninput = () => { cfg.about = $("about").value.trim(); saveCfg(); };
+$("model").onchange = () => { cfg.model = $("model").value; saveCfg(); engine = null; $("cfgMsg").textContent = "Cerebro cambiado. Se cargará en la próxima llamada."; };
 $("voice").onchange = () => { cfg.voice = $("voice").value; piperFailed = false; saveCfg(); };
-$("testVoice").onclick = () => { stopSpeaking(); streamDone = true; if (isNeural()) statusEl.textContent = "Preparando voz..."; speak("Aquí TARS. Humor al " + cfg.humor + " por ciento. Todo aquí está diseñado para matarte."); };
-$("wipe").onclick = () => { history = []; saveHistory(); logEl.innerHTML = ""; statusEl.textContent = "Memoria borrada."; };
-$("openCfg").onclick = () => $("panel").style.display = "block";
-$("closeCfg").onclick = () => $("panel").style.display = "none";
+$("testVoice").onclick = async () => {
+  stopSpeaking(); streamDone = true;
+  if (isNeural()) {
+    $("cfgMsg").textContent = "Cargando voz… la primera vez tarda.";
+    await loadNeural(p => { if (p.total) $("cfgMsg").textContent = "Descargando voz… " + Math.round(p.loaded / p.total * 100) + "%"; });
+    $("cfgMsg").textContent = piperFailed ? "La voz neuronal no ha cargado." : "";
+  }
+  speak("Aquí TARS. Todo aquí está diseñado para matarte. Bromeaba. No, en serio.");
+};
+$("wipe").onclick = () => { history = []; saveHistory(); $("cfgMsg").textContent = "Memoria borrada."; };
+$("newPin").onclick = () => { pinMode = "new"; lockTitle(); show("lock"); };
+$("openCfg").onclick = () => { syncPanel(); show("cfg"); };
+$("closeCfg").onclick = () => show("home");
 </script>
 </body>
 </html>
