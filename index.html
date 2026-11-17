@@ -95,7 +95,7 @@
     <select id="voice"></select>
   </label>
   <p class="hint">Para la voz de hombre más natural: en el iPhone ve a Ajustes > Accesibilidad > Contenido leído > Voces > Español (España) y descarga "Jorge (mejorada)" o "Jorge (premium)". Luego elígela aquí.</p>
-  <label>Tono de voz: <span id="pv"></span><input type="range" id="pitch" min="0.5" max="1.3" step="0.05"></label>
+  <label>Tono (más bajo = más grave): <span id="pv"></span><input type="range" id="pitch" min="0.5" max="1.3" step="0.05"></label>
   <label>Velocidad: <span id="rv"></span><input type="range" id="rate" min="0.6" max="1.3" step="0.05"></label>
   <div class="row">
     <button class="btn" id="testVoice">PROBAR VOZ</button>
@@ -118,9 +118,9 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem("tars_" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("tars_" + k, JSON.stringify(v)); } catch {} }
 };
-const cfg = store.get("cfg", { honesty: 90, humor: 75, discretion: 80, model: (/iPhone|iPad|Android/i.test(navigator.userAgent) ? "Qwen2.5-0.5B-Instruct-q4f16_1-MLC" : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"), voice: "", pitch: 0.9, rate: 0.95, v: 2, name: "", about: "" });
+const cfg = store.get("cfg", { honesty: 90, humor: 75, discretion: 80, model: (/iPhone|iPad|Android/i.test(navigator.userAgent) ? "Qwen2.5-0.5B-Instruct-q4f16_1-MLC" : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"), voice: "piper:es_ES-davefx-medium", pitch: 0.95, rate: 0.95, v: 3, name: "", about: "" });
 let history = store.get("history", []);
-if (cfg.v !== 2) { cfg.v = 2; cfg.pitch = 0.9; cfg.rate = 0.95; cfg.voice = ""; }
+if (cfg.v !== 3) { cfg.v = 3; cfg.pitch = 0.95; cfg.rate = 0.95; cfg.voice = "piper:es_ES-davefx-medium"; }
 const saveCfg = () => store.set("cfg", cfg);
 const saveHistory = () => store.set("history", history.slice(-30));
 
@@ -160,30 +160,24 @@ function applyParamCommand(text) {
 }
 
 // ---------- Voz (salida) ----------
+const NEURAL = [
+  ["piper:es_ES-davefx-medium", "Neuronal · Dave (hombre, España) — recomendada"],
+  ["piper:es_MX-ald-medium", "Neuronal · Ald (hombre, México)"],
+  ["piper:es_ES-carlfm-x_low", "Neuronal · Carl (hombre, España, ligera)"]
+];
 let voices = [];
+function isNeural() { return (cfg.voice || "").startsWith("piper:"); }
 function loadVoices() {
-  voices = speechSynthesis.getVoices();
+  voices = "speechSynthesis" in window ? speechSynthesis.getVoices() : [];
   const sel = $("voice");
   const es = voices.filter(v => v.lang.toLowerCase().startsWith("es"));
-  const list = es.length ? es : voices;
-  sel.innerHTML = list.map(v => `<option value="${v.name}">${v.name} (${v.lang})</option>`).join("");
-  if (!cfg.voice || !list.find(v => v.name === cfg.voice)) {
-    const score = v => {
-      let p = 0; const n = v.name.toLowerCase();
-      if (/jorge/.test(n)) p += 50;
-      if (/(diego|juan|carlos|enrique|pablo|álvaro|alvaro|raul|raúl|eddy|reed|rocko|grandpa|abuelo|male|hombre)/.test(n)) p += 30;
-      if (/(premium|mejorada|enhanced|natural|neural)/.test(n)) p += 20;
-      if (v.lang === "es-ES") p += 10;
-      if (/(m[oó]nica|paulina|marisol|helena|laura|sabina|female|mujer|flo|sandy|shelley|grandma|abuela)/.test(n)) p -= 100;
-      return p;
-    };
-    const best = [...list].sort((a, b) => score(b) - score(a))[0];
-    if (best) cfg.voice = best.name;
-    saveCfg();
-  }
+  sel.innerHTML = NEURAL.map(([v, l]) => `<option value="${v}">${l}</option>`).join("") +
+    es.map(v => `<option value="${v.name}">Sistema · ${v.name} (${v.lang})</option>`).join("");
+  if (!cfg.voice || (!isNeural() && !es.find(v => v.name === cfg.voice))) { cfg.voice = NEURAL[0][0]; saveCfg(); }
   sel.value = cfg.voice;
 }
-if ("speechSynthesis" in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+loadVoices();
+if ("speechSynthesis" in window) speechSynthesis.onvoiceschanged = loadVoices;
 
 let audioCtx;
 function beep(freq = 880, dur = 0.07) {
@@ -197,31 +191,104 @@ function beep(freq = 880, dur = 0.07) {
   } catch {}
 }
 
-let pendingUtterances = 0, streamDone = true, speechUnlocked = false, spokeOnce = false;
-const liveUtterances = [];
+// Reproductor único (iOS solo deja sonar audio "desbloqueado" con un toque)
+const player = new Audio();
+player.playsInline = true;
+const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+let speechUnlocked = false, spokeOnce = false;
 function unlockSpeech() {
-  if (speechUnlocked || !("speechSynthesis" in window)) return;
-  try {
-    const u = new SpeechSynthesisUtterance(" ");
-    u.volume = 0; u.lang = "es-ES";
-    speechSynthesis.speak(u);
-    speechUnlocked = true;
-  } catch {}
+  if (speechUnlocked) return;
+  speechUnlocked = true;
+  try { player.src = SILENT; player.play().catch(() => {}); } catch {}
+  try { if ("speechSynthesis" in window) { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u); } } catch {}
 }
 ["touchend", "click"].forEach(ev => document.addEventListener(ev, unlockSpeech, { capture: true }));
-function speak(text) {
-  if (!("speechSynthesis" in window) || !text.trim()) return;
-  const u = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, ""));
-  const v = voices.find(v => v.name === cfg.voice); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "es-ES";
-  u.pitch = cfg.pitch; u.rate = cfg.rate;
-  pendingUtterances++;
-  liveUtterances.push(u);
-  u.onstart = () => { spokeOnce = true; setState("talking"); };
-  u.onend = u.onerror = () => { liveUtterances.splice(liveUtterances.indexOf(u), 1); pendingUtterances--; if (pendingUtterances <= 0 && streamDone) finishedSpeaking(); };
-  try { speechSynthesis.resume(); } catch {}
-  speechSynthesis.speak(u);
-  setTimeout(() => { if (!spokeOnce && pendingUtterances > 0) statusEl.textContent = "No suena la voz: quita el modo silencio del iPhone y sube el volumen."; }, 4000);
+
+// Motor neuronal (Piper, funciona dentro del móvil)
+let piper = null, piperSession = null, piperVoice = null, piperFailed = false;
+async function loadNeural(progress) {
+  if (piperFailed) return null;
+  const voiceId = cfg.voice.slice(6);
+  if (piperSession && piperVoice === voiceId) return piperSession;
+  try {
+    piper = piper || await import("./piper.js");
+    piper.TtsSession._instance = null;
+    const base = new URL("./", location.href).href;
+    piperSession = await piper.TtsSession.create({ voiceId, progress, wasmPaths: {
+      onnxWasm: base + "ort/",
+      piperData: base + "piper-wasm/piper_phonemize.data",
+      piperWasm: base + "piper-wasm/piper_phonemize.wasm"
+    } });
+    piperVoice = voiceId;
+    return piperSession;
+  } catch (e) {
+    console.error(e); piperFailed = true;
+    statusEl.textContent = "No he podido cargar la voz neuronal; uso la del sistema.";
+    return null;
+  }
 }
+
+let pendingUtterances = 0, streamDone = true, speechGen = 0;
+let synthChain = Promise.resolve(), playChain = Promise.resolve();
+function playBlob(blob, gen) {
+  return new Promise(res => {
+    if (gen !== speechGen) return res();
+    const url = URL.createObjectURL(blob);
+    player.src = url;
+    player.preservesPitch = false; player.webkitPreservesPitch = false;
+    player.playbackRate = cfg.pitch;
+    const done = () => { URL.revokeObjectURL(url); player.onended = player.onerror = null; res(); };
+    player.onended = player.onerror = done;
+    player.onplaying = () => { spokeOnce = true; setState("talking"); };
+    player.play().catch(() => { statusEl.textContent = "Toca la pantalla una vez para activar el sonido."; done(); });
+  });
+}
+function speakDone(gen) { if (gen !== speechGen) return; pendingUtterances--; if (pendingUtterances <= 0 && streamDone) finishedSpeaking(); }
+
+function speak(text) {
+  text = text.replace(/[*_#`]/g, "").trim();
+  if (!text) return;
+  pendingUtterances++;
+  const gen = speechGen;
+  if (isNeural() && !piperFailed) {
+    const synth = synthChain.then(async () => {
+      if (gen !== speechGen) return null;
+      const s = await loadNeural(); if (!s) return null;
+      return s.predict(text);
+    }).catch(() => null);
+    synthChain = synth;
+    playChain = playChain.then(() => synth).then(blob => {
+      if (blob) return playBlob(blob, gen);
+      if (gen === speechGen) return speakSystem(text);
+    }).finally(() => speakDone(gen));
+    return;
+  }
+  speakSystem(text).finally(() => speakDone(gen));
+}
+
+function speakSystem(text) {
+  return new Promise(res => {
+    if (!("speechSynthesis" in window)) return res();
+    const u = new SpeechSynthesisUtterance(text);
+    const name = isNeural() ? "" : cfg.voice;
+    const v = voices.find(v => v.name === name) || voices.find(v => /jorge/i.test(v.name));
+    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "es-ES";
+    u.pitch = cfg.pitch; u.rate = cfg.rate;
+    u.onstart = () => { spokeOnce = true; setState("talking"); };
+    u.onend = u.onerror = () => res();
+    try { speechSynthesis.resume(); } catch {}
+    speechSynthesis.speak(u);
+  });
+}
+
+function stopSpeaking() {
+  speechGen++;
+  try { player.pause(); player.onended && player.onended(); } catch {}
+  try { speechSynthesis.cancel(); } catch {}
+  pendingUtterances = 0;
+  synthChain = Promise.resolve(); playChain = Promise.resolve();
+}
+
 function finishedSpeaking() {
   beep(660, 0.05);
   setState("");
@@ -270,6 +337,10 @@ async function boot() {
     statusEl.textContent = "No he podido cargar el cerebro: " + e.message + ". Prueba el modelo Mini en AJUSTES y cierra otras apps.";
     $("start").disabled = false; return;
   }
+  if (isNeural()) {
+    statusEl.textContent = "Cargando voz...";
+    await loadNeural(p => { if (p.total) { barEl.style.width = Math.round(p.loaded / p.total * 100) + "%"; statusEl.textContent = "Descargando voz... " + Math.round(p.loaded / p.total * 100) + "%"; } });
+  }
   ready = true; barEl.style.width = "0";
   $("start").style.display = "none";
   ["mic", "handsfree", "txt", "send"].forEach(id => $(id).disabled = false);
@@ -281,7 +352,7 @@ async function boot() {
 
 async function ask(text) {
   if (!ready || busy || !text.trim()) return;
-  busy = true; stopListening(); speechSynthesis.cancel(); pendingUtterances = 0;
+  busy = true; stopListening(); stopSpeaking();
   applyParamCommand(text);
   addMsg("u", text);
   history.push({ role: "user", content: text });
@@ -335,7 +406,7 @@ function killListening() { if (rec) { try { rec.abort(); } catch {} listening = 
 // ---------- Controles ----------
 $("start").onclick = () => { beep(440); boot(); };
 const mic = $("mic");
-mic.addEventListener("pointerdown", e => { e.preventDefault(); speechSynthesis.cancel(); startListening(); });
+mic.addEventListener("pointerdown", e => { e.preventDefault(); stopSpeaking(); startListening(); });
 mic.addEventListener("pointerup", () => { if (!handsFree) stopListening(); });
 mic.addEventListener("pointerleave", () => { if (!handsFree && listening) stopListening(); });
 $("handsfree").onclick = () => {
@@ -362,8 +433,8 @@ $("model").onchange = () => {
 };
 $("name").oninput = () => { cfg.name = $("name").value.trim(); saveCfg(); };
 $("about").oninput = () => { cfg.about = $("about").value.trim(); saveCfg(); };
-$("voice").onchange = () => { cfg.voice = $("voice").value; saveCfg(); };
-$("testVoice").onclick = () => { streamDone = true; speak("Aquí TARS. Humor al " + cfg.humor + " por ciento. Todo aquí está diseñado para matarte."); };
+$("voice").onchange = () => { cfg.voice = $("voice").value; piperFailed = false; saveCfg(); };
+$("testVoice").onclick = () => { stopSpeaking(); streamDone = true; if (isNeural()) statusEl.textContent = "Preparando voz..."; speak("Aquí TARS. Humor al " + cfg.humor + " por ciento. Todo aquí está diseñado para matarte."); };
 $("wipe").onclick = () => { history = []; saveHistory(); logEl.innerHTML = ""; statusEl.textContent = "Memoria borrada."; };
 $("openCfg").onclick = () => $("panel").style.display = "block";
 $("closeCfg").onclick = () => $("panel").style.display = "none";
