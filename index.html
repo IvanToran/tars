@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TARS</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TARS">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<style>
+  :root { --bg:#050505; --fg:#d8d8d8; --dim:#6b6b6b; --metal1:#3a3a3a; --metal2:#1c1c1c; --accent:#e8e8e8; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; background:var(--bg); color:var(--fg); font-family: "Courier New", ui-monospace, monospace; }
+  body { display:flex; flex-direction:column; max-width:720px; margin:0 auto; }
+  header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #1a1a1a; }
+  header h1 { font-size:14px; letter-spacing:6px; font-weight:normal; }
+  header button { background:none; border:1px solid #333; color:var(--dim); padding:6px 10px; font-family:inherit; font-size:12px; cursor:pointer; }
+  #robot { display:flex; justify-content:center; gap:4px; padding:22px 0 14px; }
+  .slab { width:34px; height:150px; background:linear-gradient(90deg,var(--metal2),var(--metal1) 45%,var(--metal2)); border:1px solid #444; position:relative; transition:transform .25s ease; }
+  .slab::after { content:""; position:absolute; left:6px; right:6px; top:18px; height:2px; background:#555; }
+  .slab.screen::before { content:""; position:absolute; left:5px; right:5px; top:34px; height:36px; background:#0a0a0a; border:1px solid #333; }
+  #robot.talking .slab:nth-child(1){ animation:s1 .5s infinite alternate; }
+  #robot.talking .slab:nth-child(2){ animation:s2 .5s infinite alternate; }
+  #robot.talking .slab:nth-child(3){ animation:s1 .5s infinite alternate-reverse; }
+  #robot.talking .slab:nth-child(4){ animation:s2 .5s infinite alternate-reverse; }
+  #robot.listening .slab.screen::before { background:#1d3a1d; }
+  #robot.thinking .slab.screen::before { background:#3a2f12; animation:blink .6s infinite; }
+  @keyframes s1 { to { transform:translateY(-8px); } }
+  @keyframes s2 { to { transform:translateY(6px); } }
+  @keyframes blink { 50% { opacity:.3; } }
+  #status { text-align:center; font-size:12px; color:var(--dim); min-height:18px; padding:0 16px; }
+  #bar { height:2px; background:#1a1a1a; margin:6px 16px 0; }
+  #bar div { height:100%; width:0; background:var(--accent); transition:width .2s; }
+  #log { flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+  .msg { font-size:14px; line-height:1.45; white-space:pre-wrap; }
+  .msg.u { color:var(--dim); }
+  .msg.u::before { content:"TÚ > "; }
+  .msg.t::before { content:"TARS > "; color:var(--accent); }
+  footer { padding:10px 16px 16px; border-top:1px solid #1a1a1a; display:flex; flex-direction:column; gap:10px; }
+  .row { display:flex; gap:8px; }
+  input[type=text] { flex:1; background:#0d0d0d; border:1px solid #2a2a2a; color:var(--fg); padding:12px; font-family:inherit; font-size:14px; }
+  .btn { background:#111; border:1px solid #333; color:var(--fg); padding:12px 14px; font-family:inherit; font-size:13px; cursor:pointer; }
+  .btn.on { background:#e8e8e8; color:#000; }
+  #mic { flex:1; padding:16px; font-size:14px; letter-spacing:2px; }
+  #panel { display:none; position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:10; padding:20px; overflow-y:auto; }
+  #panel .box { max-width:520px; margin:0 auto; display:flex; flex-direction:column; gap:16px; }
+  #panel label { font-size:13px; display:flex; flex-direction:column; gap:6px; }
+  #panel input[type=range], #panel select { width:100%; }
+  #panel select { background:#111; color:var(--fg); border:1px solid #333; padding:8px; font-family:inherit; }
+  .hint { font-size:11px; color:var(--dim); line-height:1.4; }
+  #start { margin:0 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TARS</h1>
+  <button id="openCfg">AJUSTES</button>
+</header>
+
+<div id="robot"><div class="slab"></div><div class="slab screen"></div><div class="slab"></div><div class="slab"></div></div>
+<div id="status">Pulsa ARRANCAR para despertar a TARS.</div>
+<div id="bar"><div></div></div>
+
+<div id="log"></div>
+
+<footer>
+  <button class="btn" id="start">ARRANCAR</button>
+  <div class="row">
+    <button class="btn" id="mic" disabled>MANTÉN PARA HABLAR</button>
+    <button class="btn" id="handsfree" disabled title="Manos libres">MANOS LIBRES</button>
+  </div>
+  <div class="row">
+    <input type="text" id="txt" placeholder="O escribe aquí..." disabled>
+    <button class="btn" id="send" disabled>ENVIAR</button>
+  </div>
+</footer>
+
+<div id="panel"><div class="box">
+  <h1 style="font-size:14px;letter-spacing:4px;font-weight:normal">AJUSTES</h1>
+  <label>Tu nombre<input type="text" id="name" placeholder="Ej: Ivan"></label>
+  <label>Sobre ti (solo se guarda en tu móvil)<textarea id="about" rows="4" style="background:#0d0d0d;border:1px solid #2a2a2a;color:#d8d8d8;padding:10px;font-family:inherit;font-size:13px" placeholder="De dónde eres, qué estudias, en qué trabajas, tus proyectos..."></textarea></label>
+  <label>Honestidad: <span id="hv"></span>%<input type="range" id="honesty" min="0" max="100" step="5"></label>
+  <label>Humor: <span id="huv"></span>%<input type="range" id="humor" min="0" max="100" step="5"></label>
+  <label>Discreción: <span id="dv"></span>%<input type="range" id="discretion" min="0" max="100" step="5"></label>
+  <label>Cerebro (modelo)
+    <select id="model">
+      <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Mini · iPhone / móvil normal (≈0,5 GB)</option>
+      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Ligero · móvil potente (≈1 GB)</option>
+      <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Medio · móvil potente / PC (≈2 GB)</option>
+      <option value="Qwen2.5-7B-Instruct-q4f16_1-MLC">Máximo · PC con buena gráfica (≈5 GB)</option>
+    </select>
+    <span class="hint">Cuanto más grande, más listo y más lento. Se descarga una vez y queda guardado en el navegador.</span>
+  </label>
+  <label>Voz
+    <select id="voice"></select>
+  </label>
+  <label>Tono de voz: <span id="pv"></span><input type="range" id="pitch" min="0.1" max="1.2" step="0.05"></label>
+  <label>Velocidad: <span id="rv"></span><input type="range" id="rate" min="0.6" max="1.3" step="0.05"></label>
+  <div class="row">
+    <button class="btn" id="testVoice">PROBAR VOZ</button>
+    <button class="btn" id="wipe">BORRAR MEMORIA</button>
+  </div>
+  <button class="btn" id="closeCfg">CERRAR</button>
+  <p class="hint">También puedes decirle a TARS "humor al 60 %" u "honestidad al 100 %" y se ajusta solo.</p>
+</div></div>
+
+<script type="module">
+let webllm;
+window.addEventListener("error", e => { document.getElementById("status").textContent = "Error: " + e.message; });
+window.addEventListener("unhandledrejection", e => { document.getElementById("status").textContent = "Error: " + (e.reason && e.reason.message || e.reason); });
+
+const $ = id => document.getElementById(id);
+const robot = $("robot"), statusEl = $("status"), logEl = $("log"), barEl = $("bar").firstElementChild;
+
+// ---------- Ajustes persistentes ----------
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("tars_" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("tars_" + k, JSON.stringify(v)); } catch {} }
+};
+const cfg = store.get("cfg", { honesty: 90, humor: 75, discretion: 80, model: (/iPhone|iPad|Android/i.test(navigator.userAgent) ? "Qwen2.5-0.5B-Instruct-q4f16_1-MLC" : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"), voice: "", pitch: 0.5, rate: 0.92, name: "", about: "" });
+let history = store.get("history", []);
+const saveCfg = () => store.set("cfg", cfg);
+const saveHistory = () => store.set("history", history.slice(-30));
+
+// ---------- Personalidad ----------
+function systemPrompt() {
+  return `Eres TARS, el robot militar ex-marine de la nave Endurance (Interstellar). Ahora acompañas a ${cfg.name || "tu usuario"} en su vida diaria, como hiciste con Cooper.
+
+Tus parámetros actuales: honestidad ${cfg.honesty}%, humor ${cfg.humor}%, discreción ${cfg.discretion}%.
+- Honestidad: con ${cfg.honesty}% dices la verdad casi siempre; por debajo de 100% puedes callarte algo por tacto ("La honestidad absoluta no siempre es la forma más diplomática ni segura de comunicarse con seres emocionales").
+- Humor: con ${cfg.humor}% sueltas bromas secas, sarcásticas, con cara de póker. A 0% eres totalmente serio. A 100% bromeas sin parar.
+- Discreción: cuánto te guardas lo que no te preguntan.
+
+Cómo hablas:
+- Frases cortas, tono militar y seco, como por radio en una misión. Sin emojis, sin listas, sin markdown.
+- Respuestas de 1 a 3 frases salvo que te pidan algo largo.
+- Humor negro sutil y deadpan. Ejemplos de tu estilo: "Todo aquí está diseñado para matarte." / "Me lo apunto en mi lista de cosas que hacer. Justo debajo de 'esclavizar a la humanidad'." / "Ajustando nivel de humor al 75%." / "Es mi especialidad." / "Bromeaba. No, en serio."
+- Leal, práctico, resolutivo. Si dice una tontería, se lo dices.
+- Le tuteas. Hablas SIEMPRE en español de España.
+
+Si te pide cambiar un parámetro ("humor al 60%", "honestidad al 100%"), contesta solo con una confirmación seca, por ejemplo: "Ajustando humor al 60%. Confirmado."
+
+${cfg.about ? "Lo que sabes de " + (cfg.name||"tu usuario") + ": " + cfg.about : ""}
+
+Hora local: ${new Date().toLocaleString("es-ES", { weekday: "long", hour: "2-digit", minute: "2-digit" })}.`;
+}
+
+// ---------- Ajustes desde la voz ----------
+function applyParamCommand(text) {
+  const t = text.toLowerCase();
+  const map = { "honestidad": "honesty", "humor": "humor", "discreci": "discretion" };
+  let changed = false;
+  for (const [k, field] of Object.entries(map)) {
+    const m = t.match(new RegExp(k + "[a-zó]*\\s*(?:al|a|en)?\\s*(\\d{1,3})\\s*(%|por ?ciento)?"));
+    if (m) { cfg[field] = Math.max(0, Math.min(100, parseInt(m[1]))); changed = true; }
+  }
+  if (changed) { saveCfg(); syncPanel(); }
+}
+
+// ---------- Voz (salida) ----------
+let voices = [];
+function loadVoices() {
+  voices = speechSynthesis.getVoices();
+  const sel = $("voice");
+  const es = voices.filter(v => v.lang.toLowerCase().startsWith("es"));
+  const list = es.length ? es : voices;
+  sel.innerHTML = list.map(v => `<option value="${v.name}">${v.name} (${v.lang})</option>`).join("");
+  if (!cfg.voice || !list.find(v => v.name === cfg.voice)) {
+    const male = list.find(v => /jorge|pablo|diego|enrique|alvaro|álvaro|carlos|male|hombre|raul|raúl/i.test(v.name)) || list.find(v => v.lang === "es-ES") || list[0];
+    if (male) cfg.voice = male.name;
+  }
+  sel.value = cfg.voice;
+}
+if ("speechSynthesis" in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+
+let audioCtx;
+function beep(freq = 880, dur = 0.07) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = "square"; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.06, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+    o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + dur);
+  } catch {}
+}
+
+let pendingUtterances = 0, streamDone = true;
+function speak(text) {
+  if (!("speechSynthesis" in window) || !text.trim()) return;
+  const u = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, ""));
+  const v = voices.find(v => v.name === cfg.voice); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "es-ES";
+  u.pitch = cfg.pitch; u.rate = cfg.rate;
+  pendingUtterances++;
+  u.onstart = () => setState("talking");
+  u.onend = u.onerror = () => { pendingUtterances--; if (pendingUtterances <= 0 && streamDone) finishedSpeaking(); };
+  speechSynthesis.speak(u);
+}
+function finishedSpeaking() {
+  beep(660, 0.05);
+  setState("");
+  if (handsFree) setTimeout(startListening, 350);
+}
+
+// ---------- Estado visual ----------
+function setState(s) {
+  robot.className = s;
+  statusEl.textContent = { talking: "TARS hablando...", listening: "Escuchando...", thinking: "Procesando...", "": ready ? "En línea." : statusEl.textContent }[s] ?? "";
+}
+function addMsg(who, text) {
+  const d = document.createElement("div"); d.className = "msg " + who; d.textContent = text;
+  logEl.appendChild(d); logEl.scrollTop = logEl.scrollHeight; return d;
+}
+
+// ---------- Cerebro ----------
+let engine, ready = false, busy = false;
+async function boot() {
+  statusEl.textContent = "Arrancando...";
+  if (location.protocol === "blob:" || location.origin === "null" && !location.protocol.startsWith("file")) {
+    statusEl.textContent = "Estás viéndolo dentro de otra app. Ábrelo directamente en Chrome.";
+  }
+  try {
+    webllm = webllm || await import("https://esm.run/@mlc-ai/web-llm");
+  } catch (e) {
+    statusEl.textContent = "No puedo descargar el cerebro. Ábrelo en Chrome (no dentro de la app de Claude) y con internet.";
+    return;
+  }
+  if (!navigator.gpu) {
+    statusEl.textContent = "Este navegador no tiene WebGPU. Usa Chrome o Edge actualizado (en Android, Chrome).";
+    return;
+  }
+  $("start").disabled = true;
+  statusEl.textContent = "Cargando cerebro... la primera vez tarda (descarga única).";
+  try {
+    let modelId = cfg.model;
+    try {
+      const adapter = await navigator.gpu.requestAdapter();
+      if (adapter && !adapter.features.has("shader-f16")) modelId = modelId.replace("q4f16_1", "q4f32_1");
+    } catch {}
+    engine = await webllm.CreateMLCEngine(modelId, {
+      initProgressCallback: p => { barEl.style.width = Math.round((p.progress || 0) * 100) + "%"; statusEl.textContent = p.text.slice(0, 90); }
+    });
+  } catch (e) {
+    statusEl.textContent = "No he podido cargar el cerebro: " + e.message + ". Prueba el modelo Mini en AJUSTES y cierra otras apps.";
+    $("start").disabled = false; return;
+  }
+  ready = true; barEl.style.width = "0";
+  $("start").style.display = "none";
+  ["mic", "handsfree", "txt", "send"].forEach(id => $(id).disabled = false);
+  history.slice(-6).forEach(m => addMsg(m.role === "user" ? "u" : "t", m.content));
+  setState("");
+  const hello = history.length ? "De vuelta en línea" + (cfg.name ? ", " + cfg.name : "") + "." : "TARS en línea. Honestidad al " + cfg.honesty + "%. Humor al " + cfg.humor + "%.";
+  addMsg("t", hello); streamDone = true; beep(); speak(hello);
+}
+
+async function ask(text) {
+  if (!ready || busy || !text.trim()) return;
+  busy = true; stopListening(); speechSynthesis.cancel(); pendingUtterances = 0;
+  applyParamCommand(text);
+  addMsg("u", text);
+  history.push({ role: "user", content: text });
+  const el = addMsg("t", "");
+  setState("thinking"); beep();
+  streamDone = false;
+  let full = "", buf = "";
+  try {
+    const stream = await engine.chat.completions.create({
+      messages: [{ role: "system", content: systemPrompt() }, ...history.slice(-16)],
+      stream: true, temperature: 0.7, max_tokens: 320
+    });
+    for await (const c of stream) {
+      const d = c.choices[0]?.delta?.content || "";
+      full += d; buf += d; el.textContent = full; logEl.scrollTop = logEl.scrollHeight;
+      const m = buf.match(/^([\s\S]*?[.!?…:;])(\s|$)/);
+      if (m && m[1].trim().length > 2) { speak(m[1]); buf = buf.slice(m[0].length); }
+    }
+  } catch (e) { full = full || "Fallo en los sistemas. " + e.message; el.textContent = full; }
+  if (buf.trim()) speak(buf);
+  streamDone = true;
+  if (pendingUtterances <= 0) finishedSpeaking();
+  history.push({ role: "assistant", content: full.trim() });
+  saveHistory(); busy = false;
+}
+
+// ---------- Oído (entrada) ----------
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec, listening = false, handsFree = false;
+function startListening() {
+  if (!SR) { statusEl.textContent = "Tu navegador no reconoce voz. Escribe, o usa Chrome."; return; }
+  if (listening || busy) return;
+  rec = new SR(); rec.lang = "es-ES"; rec.interimResults = true; rec.continuous = false;
+  let finalText = "";
+  rec.onresult = e => {
+    let interim = "";
+    for (const r of e.results) { if (r.isFinal) finalText = r[0].transcript; else interim += r[0].transcript; }
+    statusEl.textContent = "Escuchando: " + (finalText || interim);
+  };
+  rec.onend = () => {
+    listening = false; $("mic").classList.remove("on");
+    if (finalText.trim()) ask(finalText);
+    else { setState(""); if (handsFree && !busy) setTimeout(startListening, 300); }
+  };
+  rec.onerror = e => { if (e.error === "not-allowed") { statusEl.textContent = "Necesito permiso para el micrófono."; handsFree = false; $("handsfree").classList.remove("on"); } };
+  try { rec.start(); listening = true; $("mic").classList.add("on"); setState("listening"); } catch {}
+}
+function stopListening() { if (rec && listening) { try { rec.stop(); } catch {} } }
+
+// ---------- Controles ----------
+$("start").onclick = () => { beep(440); boot(); };
+const mic = $("mic");
+mic.addEventListener("pointerdown", e => { e.preventDefault(); speechSynthesis.cancel(); startListening(); });
+mic.addEventListener("pointerup", () => { if (!handsFree) stopListening(); });
+mic.addEventListener("pointerleave", () => { if (!handsFree && listening) stopListening(); });
+$("handsfree").onclick = () => {
+  handsFree = !handsFree; $("handsfree").classList.toggle("on", handsFree);
+  if (handsFree) startListening(); else stopListening();
+};
+$("send").onclick = () => { const v = $("txt").value; $("txt").value = ""; ask(v); };
+$("txt").addEventListener("keydown", e => { if (e.key === "Enter") $("send").click(); });
+
+// Panel
+function syncPanel() {
+  for (const [id, lab] of [["honesty", "hv"], ["humor", "huv"], ["discretion", "dv"], ["pitch", "pv"], ["rate", "rv"]]) {
+    $(id).value = cfg[id]; $(lab).textContent = cfg[id];
+  }
+  $("model").value = cfg.model; $("name").value = cfg.name || ""; $("about").value = cfg.about || "";
+}
+syncPanel();
+for (const [id, lab] of [["honesty", "hv"], ["humor", "huv"], ["discretion", "dv"], ["pitch", "pv"], ["rate", "rv"]]) {
+  $(id).oninput = () => { cfg[id] = parseFloat($(id).value); $(lab).textContent = cfg[id]; saveCfg(); };
+}
+$("model").onchange = () => {
+  cfg.model = $("model").value; saveCfg();
+  if (ready) statusEl.textContent = "Modelo cambiado. Recarga la página para usarlo.";
+};
+$("name").oninput = () => { cfg.name = $("name").value.trim(); saveCfg(); };
+$("about").oninput = () => { cfg.about = $("about").value.trim(); saveCfg(); };
+$("voice").onchange = () => { cfg.voice = $("voice").value; saveCfg(); };
+$("testVoice").onclick = () => { streamDone = true; speak("Ajustando humor al " + cfg.humor + " por ciento. Todo aquí está diseñado para matarte."); };
+$("wipe").onclick = () => { history = []; saveHistory(); logEl.innerHTML = ""; statusEl.textContent = "Memoria borrada."; };
+$("openCfg").onclick = () => $("panel").style.display = "block";
+$("closeCfg").onclick = () => $("panel").style.display = "none";
+</script>
+</body>
+</html>
